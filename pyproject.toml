@@ -1,0 +1,35 @@
+[project]
+name = "dfg-policy-monitor"
+version = "0.1.0"
+description = "Internal policy-monitoring tool for Days for Girls Global Advocacy — tracks new U.S. federal and state policy relevant to menstrual health and equity."
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.27",
+    "pydantic>=2.6",
+    "pyyaml>=6.0",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.0",
+    "pdfplumber>=0.11",
+    "feedparser>=6.0",
+    "tenacity>=8.2",
+    "python-dateutil>=2.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-mock>=3.14",
+    "respx>=0.21",
+    "freezegun>=1.4",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = []

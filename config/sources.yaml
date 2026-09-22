@@ -1,0 +1,5 @@
+# Declarative source registry — see docs/database-schema.md `source_registry`
+# and src/ingestion/registry.py. Entries are added here as each adapter is
+# built, one milestone at a time (docs/roadmap.md §4). Empty at the
+# project-foundation milestone: no adapters exist yet.
+sources: []
