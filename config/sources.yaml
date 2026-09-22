@@ -1,5 +1,21 @@
 # Declarative source registry — see docs/database-schema.md `source_registry`
 # and src/ingestion/registry.py. Entries are added here as each adapter is
-# built, one milestone at a time (docs/roadmap.md §4). Empty at the
-# project-foundation milestone: no adapters exist yet.
-sources: []
+# built, one milestone at a time (docs/roadmap.md §4).
+sources:
+  - source: federal_register
+    jurisdiction: federal
+    level: federal
+    policy_types_covered:
+      - regulation
+      - executive_order
+    source_type: api
+    base_url: https://www.federalregister.gov
+    api_url: https://www.federalregister.gov/api/v1
+    auth_required: false
+    enabled: true
+    check_frequency: daily
+    notes: >
+      Verified 2026-09 against the API's public backend source
+      (docs/source-inventory.md §1.1) — no live request could be made from
+      this environment (egress-blocked). A live smoke test against the real
+      API is a pre-production action item (docs/roadmap.md §1.5).

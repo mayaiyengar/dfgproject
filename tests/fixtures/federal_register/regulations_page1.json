@@ -1,0 +1,22 @@
+{
+  "count": 2,
+  "description": "Documents matching type: RULE, PRORULE",
+  "total_pages": 2,
+  "next_page_url": "https://www.federalregister.gov/api/v1/documents.json?page=2",
+  "results": [
+    {
+      "document_number": "2026-14822",
+      "title": "Menstrual Hygiene Products for Incarcerated Individuals in Federal Custody",
+      "abstract": "The Bureau of Prisons adopts a final rule requiring free, unrestricted access to menstrual hygiene products for all incarcerated individuals in Bureau of Prisons custody.",
+      "type": "Rule",
+      "subtype": null,
+      "html_url": "https://www.federalregister.gov/documents/2026/07/10/2026-14822/menstrual-hygiene-products-for-incarcerated-individuals",
+      "pdf_url": "https://www.govinfo.gov/content/pkg/FR-2026-07-10/pdf/2026-14822.pdf",
+      "publication_date": "2026-07-10",
+      "signing_date": null,
+      "effective_on": "2026-08-09",
+      "executive_order_number": null,
+      "citation": "91 FR 41822"
+    }
+  ]
+}

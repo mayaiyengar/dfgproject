@@ -27,10 +27,15 @@ class RestApiAdapter(SourceAdapter):
         *,
         client: httpx.Client | None = None,
         rate_limiters: list[RateLimiter] | None = None,
+        max_retries: int | None = None,
     ) -> None:
         self._client = client or build_http_client(base_url=self.base_url)
         self._rate_limiters = rate_limiters or []
         self._owns_client = client is None
+        self._max_retries = max_retries
+        """Overrides utils.config.Settings.http_max_retries for this adapter
+        instance. Mainly so error-path tests can set this to 0 and fail fast
+        instead of sleeping through real exponential backoff."""
 
     def _auth_headers(self) -> dict[str, str]:
         """Override in a concrete adapter that needs an API key header."""
@@ -51,6 +56,7 @@ class RestApiAdapter(SourceAdapter):
             path,
             params=merged_params or None,
             headers=self._auth_headers() or None,
+            max_retries=self._max_retries,
         )
         return response.json()
 

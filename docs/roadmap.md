@@ -60,6 +60,8 @@ These define "done" for this phase — all must pass before moving to Phase 6 (N
 12. **CSV export works.** Exporting the current filtered dashboard view produces a CSV with the expected columns (including `source_url`) and the correct row count.
 13. **Tests run without live government dependencies.** The full adapter, normalization, classification, and persistence test suite passes in CI with network access disabled, using only recorded fixtures — no test calls a live government website or the Open States/Congress.gov/Federal Register APIs.
 
+**Known gap against criterion 1, as of the Federal Register adapter build (2026-09):** this development environment's egress policy blocks direct requests to `federalregister.gov` (and every other `.gov` domain tested, plus `openstates.org`) from both shell tools and `WebFetch` — the same restriction the original research pass hit. The adapter was instead built and verified against the Federal Register API's own public backend source code (`source-inventory.md` §1.1), which is a strong but not equivalent substitute for a live request. **A live smoke-test run against the real API, from an environment where it's reachable, is a pre-production requirement before this criterion can be marked satisfied** — tracked alongside the existing Open States/LegiScan ToS action items as something to close before Phase 1 goes to production, not before development continues.
+
 ## 2. Repository structure
 
 ```

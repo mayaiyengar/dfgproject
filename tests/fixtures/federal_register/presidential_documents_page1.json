@@ -1,0 +1,35 @@
+{
+  "count": 2,
+  "description": "Documents matching type: PRESDOCU",
+  "total_pages": 1,
+  "results": [
+    {
+      "document_number": "2026-16500",
+      "title": "Executive Order 14400—Improving Access to Menstrual Health Products in Federal Facilities",
+      "abstract": "This order directs federal agencies to ensure free access to menstrual hygiene products in restrooms in federal buildings.",
+      "type": "Presidential Document",
+      "subtype": "Executive Order",
+      "html_url": "https://www.federalregister.gov/documents/2026/08/15/2026-16500/improving-access-to-menstrual-health-products-in-federal-facilities",
+      "pdf_url": "https://www.govinfo.gov/content/pkg/FR-2026-08-15/pdf/2026-16500.pdf",
+      "publication_date": "2026-08-15",
+      "signing_date": "2026-08-12",
+      "effective_on": null,
+      "executive_order_number": 14400,
+      "citation": "91 FR 44100"
+    },
+    {
+      "document_number": "2026-16501",
+      "title": "National Women's Health Week, 2026",
+      "abstract": "A proclamation designating National Women's Health Week.",
+      "type": "Presidential Document",
+      "subtype": "Proclamation",
+      "html_url": "https://www.federalregister.gov/documents/2026/08/15/2026-16501/national-womens-health-week-2026",
+      "pdf_url": "https://www.govinfo.gov/content/pkg/FR-2026-08-15/pdf/2026-16501.pdf",
+      "publication_date": "2026-08-15",
+      "signing_date": "2026-08-11",
+      "effective_on": null,
+      "executive_order_number": null,
+      "citation": "91 FR 44105"
+    }
+  ]
+}

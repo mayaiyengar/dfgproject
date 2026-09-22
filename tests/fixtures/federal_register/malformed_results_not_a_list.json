@@ -1,0 +1,5 @@
+{
+  "count": 1,
+  "description": "Simulates an unexpected API response shape",
+  "results": "unexpected-string-instead-of-list"
+}

@@ -19,6 +19,28 @@ No API, format, or rate limit below was invented. Where research couldn't confir
 
 **whitehouse.gov is explicitly not recommended** as a primary EO source — no API, unstable permalinks across administrations. federalregister.gov (cross-verified against GovInfo's archival PDF) is the system of record.
 
+### 1.1 Federal Register API — live verification (2026-09, implementation milestone)
+
+Before building the adapter, this environment's egress policy was checked directly: `curl`/httpx to `www.federalregister.gov` and `WebFetch` to the same domain both return an explicit block (`EGRESS_BLOCKED` / proxy `connect_rejected`) — the same restriction the original research pass hit, now confirmed to also apply in the implementation session, not just the research one. A live request against the real API could not be made.
+
+**What was used instead, and why it's still authoritative, not a guess:** the Federal Register API is run by the National Archives, whose backend source code is public at `github.com/usnationalarchives/federalregister-api-core` (AGPLv3 — GitHub itself is not blocked by this environment's egress policy). Rather than build the adapter from the research summary alone, the actual serializer, model, search, and controller source were read directly:
+- `app/presenters/entry_api_representation.rb` — the exact field list returned per document, and the default field set for search results.
+- `app/models/entry.rb` — the `ENTRY_TYPES` mapping (the real values behind the `type` field).
+- `app/searches/entry_search.rb` — accepted values for the `type` filter condition.
+- `app/controllers/api_controller.rb` (`render_search`) — the actual JSON response envelope and its behavior on zero results.
+
+This is source-code-level ground truth for the current API, not the same as a live request/response pair, but a stronger form of verification than the original research pass had (which relied on search-result summaries of the docs page). It cannot substitute for a live request entirely — response *behavior* under real-world conditions (actual rate limiting thresholds, transient errors, an edge case the code doesn't obviously reveal) is still unverified. **A live smoke-test run against the real API is a pre-production action item** (see `roadmap.md`), same as the ToS action items already tracked there.
+
+**Confirmed field names/values** (used directly in `src/ingestion/federal/federal_register.py`): `document_number`, `title`, `abstract`, `type`, `subtype`, `html_url`, `pdf_url`, `publication_date`, `signing_date`, `effective_on`, `executive_order_number`, `citation`, `agencies`. `type` values are exactly `"Rule"`, `"Proposed Rule"`, `"Notice"`, `"Presidential Document"`, `"Correction"`, `"Uncategorized Document"`, `"Sunshine Act Document"` (from the `ENTRY_TYPES` constant); the `type` *filter* condition takes the underlying codes `RULE` / `PRORULE` / `NOTICE` / `PRESDOCU` / `CORRECT`. Executive orders are `type="Presidential Document"` with `subtype="Executive Order"` (subtype is the presidential-document-type name — Proclamations, Memoranda, Determinations, and Notices share the same `type` and differ only by `subtype`).
+
+**Discrepancies found versus the original research pass** (documented per the "stop and document" rule rather than silently built around):
+
+1. **There is no `effective_date` field.** The real field is `effective_on`. The original research/architecture assumption of a generic `effective_date` was wrong for this specific source; the adapter uses `effective_on`.
+2. **A zero-result search response omits the `results` key entirely** rather than returning `"results": []`. Confirmed directly in `api_controller.rb`'s `render_search`: the key is only added `if search.count > 0 && results.count > 0`. The adapter reads `payload.get("results", [])`, not `payload["results"]`, specifically because of this.
+3. **The exact query-parameter value for filtering by `presidential_document_type`** (e.g. whether it's `executive_order`, `Executive Order`, or a numeric ID) could not be confirmed from the search/filter source in the time available — the model uses an `identifier_attribute` whose exact values live in seed data, not code. Rather than guess, the adapter fetches all `PRESDOCU` (Presidential Document) records and filters to `subtype == "Executive Order"` client-side, which *is* fully verified (§ above). This is slightly less efficient (fetches a few non-EO presidential documents per page that are then discarded) but doesn't depend on an unverified filter value.
+4. **`order` parameter values** (`relevance`/`newest`/`oldest`) were not independently re-confirmed against source in this pass — `entry_search.rb` confirms three sort modes exist (labeled "Relevant"/"Newest"/"Oldest" for display) but not their exact lowercase URL parameter spelling. The adapter uses `order=newest` per the original research's citation of the public docs page; because incremental fetching relies on the `conditions[publication_date][gte]` date filter (confirmed field name) rather than result ordering, an incorrect `order` value would affect result *ordering* only, not correctness of what's fetched.
+5. **Default/maximum `per_page`** was not found as a hardcoded constant in the controller; a third-party R client library's documentation states a maximum of 1000. The adapter defaults to 100 and treats 1000 as an assumed ceiling, not independently confirmed — flagged for the live smoke-test action item.
+
 ---
 
 ## 2. State & DC legislation — the aggregator layer

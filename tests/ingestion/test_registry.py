@@ -81,8 +81,10 @@ def test_load_source_registry_rejects_invalid_policy_type(tmp_path):
         load_source_registry(config_path)
 
 
-def test_repo_sources_yaml_loads_and_is_currently_empty():
-    """The project-foundation milestone ships config/sources.yaml with no
-    entries — adapters are added to it one milestone at a time."""
+def test_repo_sources_yaml_loads_currently_configured_sources():
+    """config/sources.yaml grows by one entry per adapter milestone
+    (docs/roadmap.md §4) — this test just proves the live repo file parses,
+    not any specific adapter's presence (each adapter has its own tests)."""
     sources = load_source_registry("config/sources.yaml")
-    assert sources == []
+    assert all(isinstance(s, SourceConfig) for s in sources)
+    assert len({s.source for s in sources}) == len(sources)  # no duplicate slugs

@@ -1,0 +1,12 @@
+{
+  "count": 1,
+  "description": "Simulates a record missing a field this adapter requires",
+  "results": [
+    {
+      "title": "A Document With No document_number",
+      "type": "Rule",
+      "html_url": "https://www.federalregister.gov/documents/2026/09/01/example",
+      "publication_date": "2026-09-01"
+    }
+  ]
+}

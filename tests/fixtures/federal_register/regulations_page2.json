@@ -1,0 +1,21 @@
+{
+  "count": 2,
+  "description": "Documents matching type: RULE, PRORULE",
+  "total_pages": 2,
+  "results": [
+    {
+      "document_number": "2026-15990",
+      "title": "Free Menstrual Products in Federally Funded School Facilities",
+      "abstract": "The Department of Education proposes to require local educational agencies receiving certain federal funds to provide free menstrual products in school restrooms.",
+      "type": "Proposed Rule",
+      "subtype": null,
+      "html_url": "https://www.federalregister.gov/documents/2026/08/02/2026-15990/free-menstrual-products-in-federally-funded-school-facilities",
+      "pdf_url": "https://www.govinfo.gov/content/pkg/FR-2026-08-02/pdf/2026-15990.pdf",
+      "publication_date": "2026-08-02",
+      "signing_date": null,
+      "effective_on": null,
+      "executive_order_number": null,
+      "citation": null
+    }
+  ]
+}
