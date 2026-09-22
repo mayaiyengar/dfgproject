@@ -1,0 +1,12 @@
+{
+  "bills": [
+    {
+      "type": "HR",
+      "title": "A Bill Missing Its Congress Number",
+      "originChamber": "House"
+    }
+  ],
+  "pagination": {
+    "count": 1
+  }
+}

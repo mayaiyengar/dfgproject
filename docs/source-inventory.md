@@ -43,6 +43,35 @@ This is source-code-level ground truth for the current API, not the same as a li
 
 ---
 
+### 1.2 Congress.gov API — verification method (2026-09, implementation milestone)
+
+**No live API request was made, for two independent reasons, not one:** this environment has no `CONGRESS_API_KEY` configured, and `api.congress.gov` is blocked by this environment's egress policy regardless (confirmed directly — same restriction as every other `.gov` domain tested). Per the implementation rules, neither condition was worked around and no response shape was invented to fill the gap.
+
+**What was used instead:** the Congress.gov API is maintained by the Library of Congress at `github.com/LibraryOfCongress/api.congress.gov` (public, official). Verification drew on several files in that repo, each cited below — this is "official documentation/source-code verification," explicitly not equivalent to a live request/response pair:
+- `Documentation/BillEndpoint.md` — the exact field lists for the **list** response (`congress`, `type`, `originChamber`, `originChamberCode`, `number`, `url`, `title`, `updateDateIncludingText`, `latestAction`, `updateDate`) versus the **detail** response (adds `introducedDate`, `sponsors`, `cosponsors`, `committees`, `actions`, `policyArea`, `subjects`, `summaries`, `laws`, and more).
+- `Documentation/openapi.yaml` — confirms the list endpoint's query parameters are `format`, `offset`, `limit`, `fromDateTime`, `toDateTime` (the file is large enough that some deeper sections, like the full parameter schema definitions, were truncated by the fetch tool and could not be read — noted as a residual gap below).
+- `python/cdg_client.py` — the official reference client's actual request-construction code.
+- `python/bill_example.py` and `python/bill_example_output.txt` — a worked example script and its real recorded output.
+
+**Confirmed facts used directly in `src/ingestion/federal/congress_gov.py`:**
+- Base URL: `https://api.congress.gov/v3/`. Bill list: `GET /bill` or `GET /bill/{congress}`. Bill detail: `GET /bill/{congress}/{billType}/{billNumber}` (e.g. `bill/117/hr/21` — `billType` is lowercase, e.g. `hr`, `s`, `hjres`).
+- **Authentication is a header, `X-Api-Key`, not a query parameter** — confirmed directly from `cdg_client.py`'s source: `self._session.headers.update({"x-api-key": x_api_key})`, with an explicit code comment: *"do not use url parameters, even if offered, use headers."* This is a real discrepancy against the generic api.data.gov convention (`?api_key=...`) the original research assumed by analogy with GovInfo/Regulations.gov — Congress.gov's own reference client deliberately avoids the query-param form.
+- Pagination: response includes a `pagination` object with `count` and, when more pages exist, `next` (a full URL) — confirmed from `bill_example.py`'s `get_bill_pagination()` function, which loops `while "next" in pagination_info`.
+- Incremental filtering: `fromDateTime` / `toDateTime` query parameters, ISO-8601 UTC format confirmed by example: `2022-01-04T04:02:00Z`. Sorting: `sort=updateDate+desc`.
+- Default page size 20, adjustable up to 250 (README, matches original research).
+
+**Discrepancies/gaps found versus the original research pass:**
+1. **Auth is a header, not a query param** (above) — the single most consequential finding, since building against the wrong auth mechanism would have made every request fail with 401/403 despite a valid key.
+2. **List and detail responses have materially different field sets.** The list endpoint does *not* include `sponsors` or `introducedDate` — only the detail endpoint does. This means fully satisfying "preserve sponsors when available" requires a per-bill detail fetch in addition to the list fetch, which the adapter does, capped and with per-bill failure isolation (a single bad detail fetch doesn't fail the whole run) — see the adapter's docstring.
+3. **The exact JSON key nesting for `latestAction` and the top-level list/detail response envelope (`bills: [...]` vs `bill: {...}`)** was inferred from the README's stated XML/JSON structural parity and the confirmed XML pagination example, not independently re-confirmed byte-for-byte in JSON. This is flagged as unverified and should be the first thing checked in a live smoke test.
+4. **The public `https://www.congress.gov/bill/{congress}th-congress/{type-slug}/{number}` URL pattern** used for `source_url` is well-established, stable public knowledge of congress.gov's own URL scheme, not something confirmed against source code this session (there was no need to invent it — it's long-documented, widely used, and not proprietary — but it's disclosed here as knowledge-based rather than source-verified, consistent with the same standard applied elsewhere in this document). The API's own `url` field (an API JSON endpoint, not a human-readable page) is preserved in `raw_payload` regardless.
+5. **`official_text_url` is not populated in this milestone.** Bill full text lives behind a separate `textVersions` sub-resource this adapter doesn't call — rather than guess at a URL shape, it's left `None`, with the gap disclosed here instead of filled with an assumption.
+6. **`normalized_status` mapping is deliberately minimal**: `ENACTED` when the detail response's `laws` field is a non-empty list (unambiguous), else `UNKNOWN`. The full set of `latestAction` text patterns (passed one chamber, vetoed, failed, withdrawn) was not enumerated from a real sample of values, so no attempt was made to guess a fuller mapping — `official_status` preserves the verbatim `latestAction` text regardless, so nothing is lost, just not yet categorized.
+
+Same as Federal Register: **a live smoke test against the real API, with a real key, from a network that can reach it, is a pre-production action item** (`roadmap.md` §1.5), not a blocker for continued development.
+
+---
+
 ## 2. State & DC legislation — the aggregator layer
 
 Rather than 50 bill-specific scrapers, bill/resolution tracking across all 50 states + DC is handled by **one reusable adapter**:

@@ -1,0 +1,26 @@
+{
+  "bills": [
+    {
+      "congress": 118,
+      "type": "HR",
+      "originChamber": "House",
+      "originChamberCode": "H",
+      "number": "2200",
+      "url": "https://api.congress.gov/v3/bill/118/hr/2200?format=json",
+      "title": "Access to Menstrual Products for Veterans Act",
+      "updateDateIncludingText": "2026-01-10T12:00:00Z",
+      "updateDate": "2026-01-10",
+      "latestAction": {
+        "actionDate": "2025-12-15",
+        "text": "Became Public Law No: 118-245."
+      }
+    }
+  ],
+  "pagination": {
+    "count": 3
+  },
+  "request": {
+    "contentType": "application/json",
+    "format": "json"
+  }
+}

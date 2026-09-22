@@ -1,0 +1,42 @@
+{
+  "bills": [
+    {
+      "congress": 119,
+      "type": "HR",
+      "originChamber": "House",
+      "originChamberCode": "H",
+      "number": "4210",
+      "url": "https://api.congress.gov/v3/bill/119/hr/4210?format=json",
+      "title": "Menstrual Products in Schools Act",
+      "updateDateIncludingText": "2026-08-20T10:15:00Z",
+      "updateDate": "2026-08-20",
+      "latestAction": {
+        "actionDate": "2026-08-19",
+        "text": "Referred to the House Committee on Education and the Workforce."
+      }
+    },
+    {
+      "congress": 119,
+      "type": "S",
+      "originChamber": "Senate",
+      "originChamberCode": "S",
+      "number": "1899",
+      "url": "https://api.congress.gov/v3/bill/119/s/1899?format=json",
+      "title": "Federal Prisons Menstrual Equity Act",
+      "updateDateIncludingText": "2026-08-18T09:00:00Z",
+      "updateDate": "2026-08-18",
+      "latestAction": {
+        "actionDate": "2026-08-17",
+        "text": "Read twice and referred to the Committee on the Judiciary."
+      }
+    }
+  ],
+  "pagination": {
+    "count": 3,
+    "next": "https://api.congress.gov/v3/bill?format=json&limit=2&offset=2"
+  },
+  "request": {
+    "contentType": "application/json",
+    "format": "json"
+  }
+}

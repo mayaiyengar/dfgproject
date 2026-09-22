@@ -1,0 +1,57 @@
+{
+  "bill": {
+    "congress": 119,
+    "type": "HR",
+    "number": "4210",
+    "originChamber": "House",
+    "title": "Menstrual Products in Schools Act",
+    "introducedDate": "2026-06-01",
+    "updateDate": "2026-08-20",
+    "updateDateIncludingText": "2026-08-20T10:15:00Z",
+    "policyArea": {
+      "name": "Education"
+    },
+    "sponsors": [
+      {
+        "bioguideId": "T000001",
+        "fullName": "Rep. Test, Jane [D-CA-12]",
+        "party": "D",
+        "state": "CA",
+        "district": 12
+      }
+    ],
+    "cosponsors": {
+      "count": 5,
+      "url": "https://api.congress.gov/v3/bill/119/hr/4210/cosponsors?format=json"
+    },
+    "committees": {
+      "count": 1,
+      "url": "https://api.congress.gov/v3/bill/119/hr/4210/committees?format=json"
+    },
+    "actions": {
+      "count": 2,
+      "url": "https://api.congress.gov/v3/bill/119/hr/4210/actions?format=json"
+    },
+    "subjects": {
+      "count": 3,
+      "url": "https://api.congress.gov/v3/bill/119/hr/4210/subjects?format=json"
+    },
+    "summaries": {
+      "count": 1,
+      "url": "https://api.congress.gov/v3/bill/119/hr/4210/summaries?format=json"
+    },
+    "textVersions": {
+      "count": 1,
+      "url": "https://api.congress.gov/v3/bill/119/hr/4210/text?format=json"
+    },
+    "laws": [],
+    "latestAction": {
+      "actionDate": "2026-08-19",
+      "text": "Referred to the House Committee on Education and the Workforce."
+    }
+  },
+  "request": {
+    "contentType": "application/json",
+    "format": "json"
+  }
+}

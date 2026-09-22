@@ -1,0 +1,6 @@
+{
+  "bills": "unexpected-string-instead-of-list",
+  "pagination": {
+    "count": 1
+  }
+}

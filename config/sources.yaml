@@ -19,3 +19,23 @@ sources:
       (docs/source-inventory.md §1.1) — no live request could be made from
       this environment (egress-blocked). A live smoke test against the real
       API is a pre-production action item (docs/roadmap.md §1.5).
+
+  - source: congress_gov_bills
+    jurisdiction: federal
+    level: federal
+    policy_types_covered:
+      - bill
+    source_type: api
+    base_url: https://api.congress.gov
+    api_url: https://api.congress.gov/v3
+    auth_required: true
+    enabled: true
+    check_frequency: daily
+    notes: >
+      Verified 2026-09 against the official LibraryOfCongress/api.congress.gov
+      repo's docs and reference client (docs/source-inventory.md §1.2) — no
+      live request could be made (no CONGRESS_API_KEY configured in this
+      environment, and api.congress.gov is egress-blocked regardless).
+      Requires CONGRESS_API_KEY to be set; fails clearly at construction if
+      missing. A live smoke test with a real key is a pre-production action
+      item (docs/roadmap.md §1.5).

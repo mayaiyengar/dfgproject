@@ -1,0 +1,36 @@
+{
+  "bill": {
+    "congress": 119,
+    "type": "S",
+    "number": "1899",
+    "originChamber": "Senate",
+    "title": "Federal Prisons Menstrual Equity Act",
+    "introducedDate": "2026-05-20",
+    "updateDate": "2026-08-18",
+    "updateDateIncludingText": "2026-08-18T09:00:00Z",
+    "policyArea": {
+      "name": "Crime and Law Enforcement"
+    },
+    "sponsors": [
+      {
+        "bioguideId": "T000002",
+        "fullName": "Sen. Example, John [R-TX]",
+        "party": "R",
+        "state": "TX"
+      }
+    ],
+    "cosponsors": {
+      "count": 2,
+      "url": "https://api.congress.gov/v3/bill/119/s/1899/cosponsors?format=json"
+    },
+    "laws": [],
+    "latestAction": {
+      "actionDate": "2026-08-17",
+      "text": "Read twice and referred to the Committee on the Judiciary."
+    }
+  },
+  "request": {
+    "contentType": "application/json",
+    "format": "json"
+  }
+}
