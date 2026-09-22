@@ -7,7 +7,8 @@ Status: proposed, pending approval. Nothing in this document has been implemente
 - **Reusable adapters, not 50 scripts.** A small set of base adapter classes (REST API, RSS/Atom, HTML scrape, PDF, JS-rendered) that source-specific adapters extend by supplying config + parsing logic, not by reimplementing HTTP/retry/rate-limit handling.
 - **Works with zero AI configured.** Rule-based relevance filtering is the load-bearing layer. The Claude API is an optional second-stage refinement, never a dependency for the pipeline to run.
 - **No silent failure.** A source that returns 0 records because it's broken must look different in the data from a source that returns 0 records because nothing new was filed.
-- **Provenance first.** Every stored policy traces to a `source_url` and (where available) an `official_text_url`, plus the raw payload hash used to detect changes.
+- **Provenance first.** Every stored policy traces to a `source_url` and (where available) an `official_text_url`, plus a recoverable version history — not just a hash that proves *something* changed (see §13).
+- **Coverage is reported, never implied.** "51 jurisdictions monitored" is meaningless without saying *what* is monitored in each — legislation, regulations, executive orders, and agency guidance have wildly different coverage in practice (`source-inventory.md`). The system computes and reports coverage per policy type, from actual enabled/healthy sources, not as a single aggregate number (§12).
 - **Incremental, not archival.** The system is optimized to catch *new* and *changed* items on a recurring cadence, not to backfill history. Adapters should support a "since last successful run" query where the source allows it, and fall back to "fetch current list, diff against what we've already stored" where it doesn't.
 
 ## 2. High-level data flow
@@ -89,7 +90,7 @@ Rather than 50 bespoke scrapers, adapters are built by composing a handful of ba
 
 | Base class | Handles | Used for |
 |---|---|---|
-| `RestApiAdapter` | auth headers, pagination, retry/backoff, rate-limit sleep | Congress.gov, Federal Register, Regulations.gov, Open States/LegiScan |
+| `RestApiAdapter` | auth headers, pagination, retry/backoff, rate-limit sleep | Congress.gov, Federal Register, Regulations.gov, Open States (LegiScan later, if confirmed — §3.3) |
 | `RssFeedAdapter` | feed parsing (feedparser), incremental via `pubDate` | states that publish bill/EO RSS feeds |
 | `HtmlListAdapter` | fetch a listing page, follow pagination, parse via a per-source CSS/XPath selector map, fetch detail pages | state regulation registers / EO pages with static HTML |
 | `PdfDocumentAdapter` | download PDF, extract text (pdfplumber), regex/heuristic field extraction | states that publish EOs/rules only as PDFs |
@@ -99,8 +100,10 @@ A concrete adapter (e.g. `adapters/state/california_regulations.py`) subclasses 
 
 ### 3.3 Two tiers of sources
 
-1. **Aggregator-backed** — Open States (or LegiScan) for state/DC *bills*, Congress.gov + GovInfo for federal *bills*, Federal Register for federal *rules and executive orders*. One adapter class, parameterized per jurisdiction, covers most bill-tracking needs across all 50 states without per-state scraping. (Coverage/terms to be confirmed by the research task before this becomes a firm dependency — see `source-inventory.md`.)
+1. **Aggregator-backed** — **Open States** for state/DC *bills*, Congress.gov + GovInfo for federal *bills*, Federal Register for federal *rules and executive orders*. One adapter class, parameterized per jurisdiction, covers most bill-tracking needs across all 50 states without per-state scraping.
 2. **Bespoke per-jurisdiction** — state regulation registers, governors' executive order pages, and anything an aggregator doesn't cover. These are the ones that actually vary state-by-state and are why an adapter *pattern* rather than a single monolithic scraper matters.
+
+**LegiScan is explicitly deferred, not a dependency.** The architecture does not assume LegiScan's presence anywhere in the pipeline — it is not a fallback the code silently relies on, and no LegiScan client is built in the initial implementation. This research pass could not verify LegiScan's terms of service (network-blocked) or confirm its licensing permits an internal nonprofit tool's use and long-term caching of its data. Once that's confirmed directly (see `roadmap.md` §1.4), LegiScan can be added later as an optional secondary/cross-check adapter behind its own `source_registry` row — the `RestApiAdapter` base class and the bill-normalization schema already accommodate a second bill source without any redesign, so deferring it costs nothing architecturally. Until then, Open States is the sole state-bill source, subject to its documented rate limits (`source-inventory.md` §2).
 
 ## 4. Normalization
 
@@ -145,7 +148,7 @@ Change detection does **not** trust a source's own "new" flag. For every normali
 2. Look up existing row by `(source_id, external_id)`.
    - No existing row → insert, `is_new=true`, `first_seen_at=last_seen_at=now()`.
    - Existing row, same `content_hash` → `unchanged`: only bump `last_seen_at`.
-   - Existing row, different `content_hash` → `is_updated=true`, `last_updated_at=now()`, diff the individual normalized fields and write one `policy_changes` row per changed field (`field_changed`, `old_value`, `new_value`, `change_type` in `status_change | date_change | text_change | other`).
+   - Existing row, different `content_hash` → `is_updated=true`, `last_updated_at=now()`, diff the individual normalized fields and write one `policy_changes` row per changed field (`field_changed`, `old_value`, `new_value`, `change_type` in `status_change | date_change | text_change | other`), **and** write one `policy_snapshots` row capturing the full normalized+raw content at that version (§13) — `policy_changes` alone tells a human what changed; `policy_snapshots` is what makes that change reconstructable rather than just assertable.
 3. A policy not seen in the latest fetch of a source that previously listed it is *not* deleted — it's left alone (sources rotate what's "current" constantly; absence isn't a reliable signal) but this is visible via `last_seen_at` staleness in the dashboard.
 
 ## 8. Scheduling
@@ -166,7 +169,7 @@ Change detection does **not** trust a source's own "new" flag. For every normali
 - **Fixtures over live HTTP.** Every adapter test runs against saved fixture HTML/JSON/PDF captured once from the real source, not live network calls — deterministic, fast, doesn't hammer government servers during CI.
 - **Unit tests**: `normalize()` per adapter (raw fixture → expected `PolicyIn`), rule-engine keyword matching (true/false positive fixtures), hashing/dedup logic, status normalization mapping.
 - **Contract test**: every adapter's `normalize()` output validates against the shared `PolicyIn` schema — this is what actually keeps 50 heterogeneous sources from rotting the shared data model.
-- **Integration test**: full pipeline (fetch fixtures → normalize → classify [rules only] → persist) against a throwaway SQLite DB, asserting on `is_new`/`is_updated`/`policy_changes` behavior across two simulated runs.
+- **Integration test**: full pipeline (fetch fixtures → normalize → classify [rules only] → persist) against a throwaway SQLite DB, asserting on `is_new`/`is_updated`/`policy_changes`/`policy_snapshots` behavior across two simulated runs, and on the coverage computation (§12) returning correct per-policy-type counts for the fixture `source_registry`.
 - **Classification tests**: prompt-response contract tested against recorded/mocked Claude responses (never live API calls in CI, to avoid cost/flakiness); a small golden set of hand-labeled ambiguous bills for offline prompt-quality iteration.
 
 ## 11. Deployment
@@ -176,9 +179,55 @@ Change detection does **not** trust a source's own "new" flag. For every normali
 | Local dev | SQLite | run manually via CLI | `streamlit run` locally |
 | Shared internal (MVP) | Postgres (managed — e.g. Render/Railway/Supabase/RDS, whatever DfG IT can provision) | GitHub Actions scheduled workflow | Streamlit Community Cloud or a small internal server, reading the same Postgres |
 
-Secrets (DB connection string, optional `ANTHROPIC_API_KEY`, aggregator API keys) live in GitHub Actions secrets and the dashboard host's env vars — never committed. Alembic manages schema migrations so the dev SQLite and shared Postgres stay in sync as the schema evolves.
+Secrets (DB connection string, optional `ANTHROPIC_API_KEY`, Open States API key, and a LegiScan key later if/when it's added — §3.3) live in GitHub Actions secrets and the dashboard host's env vars — never committed. Alembic manages schema migrations so the dev SQLite and shared Postgres stay in sync as the schema evolves.
 
-## 12. What this architecture deliberately defers
+## 12. Coverage reporting
+
+The project brief's original framing ("monitor all 50 states + DC") creates an easy trap: reporting "51 jurisdictions monitored" implies comprehensive coverage of every policy type, when in practice a jurisdiction might have a working bill-tracking adapter and nothing else. `source-inventory.md` confirms this isn't hypothetical — regulations, executive orders, and open-data infrastructure vary enormously in what's even *possible* to automate per state. The system is designed so this unevenness is visible, not smoothed over.
+
+**Definition of a "healthy" source** (the basis for every coverage number below): a `source_registry` row is counted as contributing coverage only if `enabled=true` AND `consecutive_failures` is below the `needs_attention` threshold (§9) AND it has at least one recorded successful run (`last_checked_at` is not null). A configured-but-never-successfully-run source, or one that's currently flagged `needs_attention`, does not count — coverage reflects sources that are actually working, not sources that merely exist in config.
+
+**Coverage computation**, per `policy_type` (legislation, regulation, executive_order, guidance, appropriation, ballot_measure, administrative_action):
+
+```
+coverage(policy_type) = count(distinct jurisdiction)
+                         from source_registry
+                         where policy_type = ANY(policy_types_covered)
+                         and <healthy, as defined above>
+                         -- reported as "X/51" for state+DC jurisdictions,
+                         -- and separately as covered/not-covered for federal,
+                         -- since federal is a single jurisdiction, not a fraction
+```
+
+This is implemented once, as a single function (e.g. `src/monitoring/coverage.py:compute_coverage()`), and called from both the dashboard's Coverage page and `scripts/report_metrics.py` — never recomputed independently in two places, which is exactly how a dashboard number and a status-report number drift apart and one of them quietly becomes wrong.
+
+**What the dashboard must show**: a Coverage page presenting a table like:
+
+| Policy type | Federal | States + DC | Jurisdictions covered |
+|---|---|---|---|
+| Legislation | ✅ | 2/51 | CA, WA |
+| Regulations | ✅ | 2/51 | CA, WA |
+| Executive orders | ✅ | 2/51 | CA, WA |
+| Agency guidance | Partial (best-effort) | 0/51 | — |
+| Appropriations/funding | ✅ | 0/51 | — |
+| Ballot measures | — (N/A federally) | 0/51 | — |
+
+**What the dashboard must never show**: a single headline figure like "51 states monitored" with no breakdown, or a coverage count that includes disabled/unhealthy sources. This isn't a UI nicety — it's the difference between DfG staff correctly understanding "we track legislation in 2 states so far" versus incorrectly believing "this tool watches everything happening in all 50 states," which the underlying data plainly does not support and never claims to in the acceptance criteria (`roadmap.md` §1.5, item 10).
+
+## 13. Provenance & retention strategy
+
+**The problem with hash-only change detection**: §7's `content_hash` reliably tells you *that* a policy changed and, combined with `policy_changes`, *which fields* changed — but neither lets you reconstruct what the record actually looked like before the change, or recover the original source document if a field-mapping bug is later discovered. A hash is a fingerprint, not a backup.
+
+**Recommendation: two retention tiers, split by cost.**
+
+1. **Text/metadata snapshots — always retained, cheap.** Every time change detection (§7) detects a `content_hash` change, write a full snapshot of the normalized fields plus the source's raw metadata response to a new append-only `policy_snapshots` row (schema in `database-schema.md`), keyed by `(policy_id, content_hash)`. This is plain text/JSON — at the data volumes this project expects (hundreds to low thousands of policies per year across the pilot and expansion phases, not millions), the storage cost of keeping every version indefinitely is negligible (low tens of KB per snapshot). This tier fully resolves the "hash alone" problem: any prior version of any policy can be reconstructed exactly, not just diffed field-by-field.
+2. **Source binaries (PDFs, etc.) — content-addressed, deduplicated, retained by policy.** The actual source document (a PDF register issue, a scanned EO) is the expensive part to keep, especially since many revisions of a policy re-fetch the *same* underlying document unchanged. Rather than storing a fresh copy in every snapshot: compute a `sha256` of the fetched binary, use that hash as a content-addressed key in a cheap object store (local disk in dev, S3-compatible storage in production), and store only the hash + a reference path in `policy_snapshots.raw_document_ref` — never the binary itself in Postgres. Storing by content hash means a PDF that's fetched 50 times unchanged across 50 runs is stored exactly once. If storage growth ever becomes a real concern (unlikely at this project's scale, but worth having an answer for), a lifecycle policy can prune binaries for versions older than N-most-recent per policy while *always* keeping the text/JSON snapshot — the recoverability that actually matters for auditing "what did this policy say" survives even if the original PDF bytes are eventually cleared.
+
+**What this deliberately avoids**: embedding raw binary blobs in the primary Postgres database (bloats backups, slows queries, and mixes transactional and blob-storage concerns), and re-fetching from `source_url` as a substitute for retention (`risks-and-limitations.md` notes government sites regularly restructure URLs and can pull down or replace documents — the source is not a reliable long-term archive of what it published last month).
+
+`policies.raw_payload` (§ persistence) keeps only the *latest* raw response for quick debugging convenience; the full historical record — every version, every source document reference — lives in `policy_snapshots`.
+
+## 14. What this architecture deliberately defers
 
 - No message queue / workers — a scheduled batch job is sufficient at this data volume (hundreds to low thousands of records per run, not a streaming problem).
 - No microservices — this is one Python package with clearly separated modules, not distributed services.

@@ -32,6 +32,8 @@ Rather than 50 bill-specific scrapers, bill/resolution tracking across all 50 st
 
 Both are bill/resolution trackers only. **Regulations, executive orders, and ballot measures are a separate problem for every jurisdiction** — see §3. Open ToS questions (redistribution/attribution terms for both aggregators could not be fetched this session — network-blocked) are tracked as action items in `roadmap.md`.
 
+**Implementation status per 2026-09 review**: only **Open States** is built as an active adapter. LegiScan remains research-stage — not integrated, no client code written — until its terms of service are directly confirmed to permit an internal nonprofit tool's use and caching of its data (`roadmap.md` §1.4). It is documented here as the researched secondary/cross-check candidate, not as a current dependency.
+
 ---
 
 ## 3. State regulations, executive orders & open data — jurisdiction-by-jurisdiction

@@ -14,6 +14,8 @@ source_registry ──┐
                    │
                    ├──1:N── policy_changes
                    │
+                   ├──1:N── policy_snapshots
+                   │
                    └──1:N── reviews
 
 scraper_runs ──1:N── scraper_run_sources ──N:1── source_registry
@@ -76,7 +78,7 @@ The core table — one row per distinct policy item, kept current (mutable) with
 | `content_hash` | text | sha256 over the fields used for change detection (see `architecture.md` §7) |
 | `is_new` | boolean | true only for the run that first inserted it; dashboard "New" view is really `first_seen_at` within window, this flag is a convenience |
 | `is_updated` | boolean | true if the most recent run changed `content_hash` |
-| `raw_payload` | JSON, nullable | the unmodified source response, kept for debugging/re-normalization if mapping logic changes later |
+| `raw_payload` | JSON, nullable | the **latest** unmodified source response, kept for quick debugging convenience; the full historical record across versions lives in `policy_snapshots`, not here (see below and `architecture.md` §13) |
 | `created_at` / `updated_at` | timestamptz | standard bookkeeping |
 
 Indexes: unique on `(source_id, external_id)` (the exact-dedup key from `architecture.md` §5); index on `(jurisdiction, policy_type, normalized_status)` for dashboard filters; index on `last_action_date` and on `first_seen_at` (both drive the "recent" views); a secondary non-unique index on `(jurisdiction, bill_number, session)` to support the cross-source dedup heuristic.
@@ -119,6 +121,26 @@ Append-only audit trail of field-level changes, written whenever change detectio
 | `source_url` | text | url at time of detection (sources occasionally restructure URLs) |
 
 Index: `(policy_id, detected_at desc)`.
+
+## `policy_snapshots`
+
+**Addition per 2026-09 review.** `content_hash` (on `policies`) proves a version changed; `policy_changes` shows which fields changed and to what — but neither lets you reconstruct the full record as it existed at a given version, or recover the source document if a mapping bug is found later. This append-only table is the recoverable version history. Retention strategy and rationale: `architecture.md` §13.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | PK | |
+| `policy_id` | FK → `policies.id` | |
+| `content_hash` | text | matches `policies.content_hash` at the moment this snapshot was captured — the join key between "a change was detected" (§`policy_changes`) and "here's the full version" |
+| `captured_at` | timestamptz | |
+| `normalized_payload` | JSON | a full copy of the mutable normalized fields (title, description, status, dates, etc.) at this version — lets a prior version be reconstructed directly, not just inferred from a series of field diffs |
+| `raw_payload` | JSON, nullable | the source's raw metadata response at fetch time (same shape as `policies.raw_payload`, but historical) |
+| `raw_document_hash` | text, nullable | sha256 of the original source binary (PDF, etc.), if one was fetched; the content-addressed key into object storage |
+| `raw_document_ref` | text, nullable | pointer to the archived binary (e.g., an object-storage key/path); null for API/JSON-only sources with no separate document |
+| `source_url` | text | url at time of capture (sources occasionally restructure URLs) |
+
+Indexes: unique on `(policy_id, content_hash)` (avoid duplicate snapshots for the same version); index on `(policy_id, captured_at desc)`.
+
+**Retention note**: `normalized_payload` and `raw_payload` (plain text/JSON) are retained indefinitely — the cheap tier. `raw_document_ref` binaries are deduplicated by content hash (the same unchanged PDF fetched across many runs is stored once) and are the only tier where a future pruning policy would ever apply; nothing about pruning binaries affects the text/JSON history, which is what most reconstruction and auditing needs actually require.
 
 ## `reviews`
 
@@ -175,4 +197,5 @@ Index: `(source_id, run_id desc)` — this is what the dashboard's Source Health
 
 - Renamed the brief's `source_registry` fields into the split above (`source_registry` = config, `scraper_run_sources` = per-run results) rather than one table trying to be both static config and dynamic run history.
 - `classifications` and `policy_changes` and `reviews` are modeled as append-only logs rather than 1:1 with `policies`, since the brief's own requirements (track classifier history, track change history, allow re-review) imply history, not a single mutable row.
-- `raw_payload` on `policies` wasn't in the brief; added because re-normalization after a mapping bug fix is much cheaper with the original payload retained, and storage cost is negligible at this volume.
+- `raw_payload` on `policies` wasn't in the brief; added because re-normalization after a mapping bug fix is much cheaper with the original payload retained, and storage cost is negligible at this volume. As of the 2026-09 review, this field holds only the *latest* payload — full version history moved to the new `policy_snapshots` table below.
+- `policy_snapshots` (new, 2026-09 review) wasn't in the brief either, and wasn't in the first draft of this schema. It was added specifically because a content hash alone can prove something changed without letting anyone reconstruct what it changed *from* — `policy_changes`' field-level diffs help a human skim what happened, but `policy_snapshots` is what makes a prior version actually recoverable. See `architecture.md` §13 for the full retention/storage-cost rationale (text/metadata always kept; source binaries content-addressed and deduplicated, the only tier where pruning would ever apply).
